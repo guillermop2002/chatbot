@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🤖 AI Chatbot Creator</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 AI Chatbot Creator</h1>
+            <p>Transform any website into an intelligent chatbot in seconds</p>
+        </div>
+        
+        <form id="chatbot-form">
+            <div class="form-group">
+                <label for="url">Website URL</label>
+                <input type="url" id="url" placeholder="https://example.com" required>
+            </div>
+            
+            <button type="submit" class="btn" id="create-btn">
+                Create Chatbot
+            </button>
+        </form>
+        
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Creating your chatbot... This may take a few moments.</p>
+        </div>
+        
+        <div class="error" id="error">
+            <strong>Error:</strong> <span id="error-message"></span>
+        </div>
+        
+        <div class="result" id="result">
+            <h3>🎉 Chatbot Created Successfully!</h3>
+            <p>Your chatbot for "<strong id="bot-title"></strong>" is ready to use.</p>
+            <p><strong>Embed Code:</strong></p>
+            <div class="embed-code" id="embed-code">
+                <button class="copy-btn" onclick="copyEmbedCode()">Copy</button>
+                <span id="embed-text"></span>
+            </div>
+            <p><small>Copy and paste this code into your website's HTML to add the chatbot widget.</small></p>
+        </div>
+
+        <!-- All Chatbots Section -->
+        <div class="chatbots-section" id="chatbots-section">
+            <h2>All Chatbots</h2>
+            <div id="chatbots-list"></div>
+        </div>
+        
+        <div class="instructions">
+            <h3>How to Use Your Chatbot</h3>
+            <ol>
+                <li>Enter the URL of any website you want to create a chatbot for</li>
+                <li>Click "Create Chatbot" and wait for processing</li>
+                <li>Copy the generated embed code</li>
+                <li>Paste the embed code into your website's HTML</li>
+                <li>Your chatbot will appear as a floating chat widget on your site</li>
+            </ol>
+            <p><strong>Note:</strong> The chatbot will only answer questions based on the content from the scraped website.</p>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
