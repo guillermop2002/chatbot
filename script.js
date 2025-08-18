@@ -1,5 +1,5 @@
 // API Configuration - Replace with your deployed Cloudflare Worker URL
-const API_BASE_URL = 'https://your-worker-name.your-subdomain.workers.dev';
+const API_BASE_URL = 'https://bot-engine.lacamacatu.workers.dev';
 const API_ENDPOINTS = {
   CREATE: '/api/create',
   LIST: '/api/list',
