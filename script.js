@@ -192,6 +192,7 @@ const renderChatbotCard = (chatbot, index) => {
   card.className = 'chatbot-card';
   card.style.animationDelay = `${index * 0.1}s`;
   
+  // CAMBIO: Se ha eliminado el div con la clase 'chatbot-stats' que mostraba las páginas.
   card.innerHTML = `
     <div class="chatbot-header">
       <div class="chatbot-icon">
@@ -206,12 +207,6 @@ const renderChatbotCard = (chatbot, index) => {
       <div class="chatbot-date">
         <i class="fas fa-calendar"></i>
         ${formatDate(chatbot.createdAt)}
-      </div>
-      <div class="chatbot-stats">
-        <span class="stat-item">
-          <i class="fas fa-file-alt"></i>
-          ${chatbot.pageCount || 0} pages
-        </span>
       </div>
     </div>
     <div class="chatbot-actions">

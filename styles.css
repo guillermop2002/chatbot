@@ -399,6 +399,7 @@ p {
 }
 
 @keyframes spin {
+  from { transform: rotate(0deg); } /* <-- Se añade esta línea */
   to { transform: rotate(360deg); }
 }
 
