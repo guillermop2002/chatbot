@@ -17,6 +17,12 @@ const elements = {
   chatbotTitle: document.getElementById('chatbotTitle'),
   embedCode: document.getElementById('embedCode'),
   copyEmbedBtn: document.getElementById('copyEmbedBtn'),
+  testChatBtn: document.getElementById('testChatBtn'),
+  testChatModal: document.getElementById('testChatModal'),
+  closeChatModal: document.getElementById('closeChatModal'),
+  testChatMessages: document.getElementById('testChatMessages'),
+  testChatInput: document.getElementById('testChatInput'),
+  sendTestMessage: document.getElementById('sendTestMessage'),
   errorToast: document.getElementById('errorToast'),
   successToast: document.getElementById('successToast'),
   errorMessage: document.getElementById('errorMessage'),
@@ -29,6 +35,7 @@ const elements = {
 // State Management
 let currentChatbots = [];
 let isCreating = false;
+let currentTestBotId = null;
 
 // Utility Functions
 const debounce = (func, wait) => {
@@ -192,7 +199,6 @@ const renderChatbotCard = (chatbot, index) => {
   card.className = 'chatbot-card';
   card.style.animationDelay = `${index * 0.1}s`;
   
-  // CAMBIO: Se ha eliminado el div con la clase 'chatbot-stats' que mostraba las páginas.
   card.innerHTML = `
     <div class="chatbot-header">
       <div class="chatbot-icon">
@@ -208,8 +214,18 @@ const renderChatbotCard = (chatbot, index) => {
         <i class="fas fa-calendar"></i>
         ${formatDate(chatbot.createdAt)}
       </div>
+      <div class="chatbot-stats">
+        <span class="stat-item">
+          <i class="fas fa-file-alt"></i>
+          ${chatbot.pageCount || 0} pages
+        </span>
+      </div>
     </div>
     <div class="chatbot-actions">
+      <button class="action-btn test-chat-card-btn" data-bot-id="${chatbot.id}" data-bot-title="${chatbot.title}">
+        <i class="fas fa-comments"></i>
+        Test Chat
+      </button>
       <button class="action-btn copy-embed-btn" data-embed="${encodeURIComponent(chatbot.embedCode || '')}">
         <i class="fas fa-code"></i>
         Copy Embed
@@ -289,6 +305,130 @@ const copyToClipboard = async (text) => {
   }
 };
 
+// Test Chat Functions
+const openTestChat = (botId, botTitle) => {
+  currentTestBotId = botId;
+  elements.testChatModal.classList.add('show');
+  document.body.style.overflow = 'hidden';
+  
+  // Reset chat messages
+  elements.testChatMessages.innerHTML = `
+    <div class="chat-message bot">
+      <div class="message-avatar">
+        <i class="fas fa-robot"></i>
+      </div>
+      <div class="message-content">
+        ¡Hola! Soy el asistente de IA para ${botTitle}. ¿En qué puedo ayudarte?
+      </div>
+    </div>
+  `;
+  
+  elements.testChatInput.focus();
+};
+
+const closeTestChat = () => {
+  elements.testChatModal.classList.remove('show');
+  document.body.style.overflow = 'auto';
+  currentTestBotId = null;
+};
+
+const addChatMessage = (content, isUser = false) => {
+  const messageDiv = document.createElement('div');
+  messageDiv.className = `chat-message ${isUser ? 'user' : 'bot'}`;
+  
+  messageDiv.innerHTML = `
+    <div class="message-avatar">
+      <i class="fas fa-${isUser ? 'user' : 'robot'}"></i>
+    </div>
+    <div class="message-content">${content}</div>
+  `;
+  
+  elements.testChatMessages.appendChild(messageDiv);
+  elements.testChatMessages.scrollTop = elements.testChatMessages.scrollHeight;
+};
+
+const showTypingIndicator = () => {
+  const typingDiv = document.createElement('div');
+  typingDiv.className = 'chat-message bot typing-message';
+  typingDiv.id = 'typing-indicator';
+  
+  typingDiv.innerHTML = `
+    <div class="message-avatar">
+      <i class="fas fa-robot"></i>
+    </div>
+    <div class="message-content">
+      <div class="typing-indicator">
+        <div class="typing-dot"></div>
+        <div class="typing-dot"></div>
+        <div class="typing-dot"></div>
+      </div>
+    </div>
+  `;
+  
+  elements.testChatMessages.appendChild(typingDiv);
+  elements.testChatMessages.scrollTop = elements.testChatMessages.scrollHeight;
+};
+
+const hideTypingIndicator = () => {
+  const typing = document.getElementById('typing-indicator');
+  if (typing) {
+    typing.remove();
+  }
+};
+
+const sendTestChatMessage = async () => {
+  const message = elements.testChatInput.value.trim();
+  if (!message || !currentTestBotId) return;
+
+  // Add user message
+  addChatMessage(message, true);
+  elements.testChatInput.value = '';
+  
+  // Show typing indicator
+  showTypingIndicator();
+  elements.sendTestMessage.disabled = true;
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/chat`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        id: currentTestBotId,
+        message: message,
+        sessionId: 'test_session_' + currentTestBotId
+      })
+    });
+
+    hideTypingIndicator();
+
+    if (!response.ok) {
+      throw new Error('Failed to get response');
+    }
+
+    const data = await response.json();
+    addChatMessage(data.response || 'Lo siento, no pude procesar tu mensaje.');
+    
+  } catch (error) {
+    console.error('Test chat error:', error);
+    hideTypingIndicator();
+    addChatMessage('Error: No se pudo conectar con el chatbot. Verifica que el worker esté desplegado correctamente.');
+  } finally {
+    elements.sendTestMessage.disabled = false;
+  }
+};
+
+const setDeleteButtonLoading = (button, loading) => {
+  if (loading) {
+    button.classList.add('loading');
+    button.disabled = true;
+  } else {
+    button.classList.remove('loading');
+    button.disabled = false;
+  }
+};
+
 // Event Listeners
 elements.form.addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -312,6 +452,8 @@ elements.form.addEventListener('submit', async (e) => {
   try {
     const result = await createChatbot(url);
     
+    // Store bot ID for test chat
+    currentTestBotId = result.botId;
     showModal(result.title || 'Your AI Chatbot', result.embedCode);
     
     // Reset form
@@ -356,8 +498,43 @@ elements.copyEmbedBtn.addEventListener('click', async () => {
   }
 });
 
-// Handle chatbot card buttons (copy and delete)
+// Test Chat Modal Event Listeners
+elements.testChatBtn.addEventListener('click', () => {
+  if (currentTestBotId) {
+    const botTitle = elements.chatbotTitle.textContent || 'Your AI Chatbot';
+    openTestChat(currentTestBotId, botTitle);
+  }
+});
+
+elements.closeChatModal.addEventListener('click', closeTestChat);
+
+elements.testChatModal.addEventListener('click', (e) => {
+  if (e.target === elements.testChatModal) {
+    closeTestChat();
+  }
+});
+
+elements.sendTestMessage.addEventListener('click', sendTestChatMessage);
+
+elements.testChatInput.addEventListener('keypress', (e) => {
+  if (e.key === 'Enter') {
+    sendTestChatMessage();
+  }
+});
+
+// Handle chatbot card buttons (test chat, copy and delete)
 elements.chatbotsGrid.addEventListener('click', async (e) => {
+  // Handle test chat button
+  if (e.target.closest('.test-chat-card-btn')) {
+    e.preventDefault();
+    const btn = e.target.closest('.test-chat-card-btn');
+    const botId = btn.dataset.botId;
+    const botTitle = btn.dataset.botTitle;
+    
+    openTestChat(botId, botTitle);
+    return;
+  }
+  
   // Handle copy embed button
   if (e.target.closest('.copy-embed-btn')) {
     e.preventDefault();

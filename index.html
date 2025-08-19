@@ -71,6 +71,7 @@
                                     Create AI Chatbot
                                 </span>
                                 <div class="btn-loader">
+                                    <div class="spinner"></div>
                                     Processing...
                                 </div>
                             </button>
@@ -94,6 +95,14 @@
                 <div class="success-info">
                     <h4 id="chatbotTitle">Your Website Chatbot</h4>
                     <p>Your AI chatbot is ready! Copy the embed code below to add it to your website.</p>
+                </div>
+                
+                <!-- Test Chat Section -->
+                <div class="test-chat-section">
+                    <button class="test-chat-btn" id="testChatBtn">
+                        <i class="fas fa-comments"></i>
+                        Test Your Chatbot
+                    </button>
                 </div>
                 
                 <div class="embed-section">
@@ -123,6 +132,38 @@
     <div class="toast success-toast" id="successToast">
         <i class="fas fa-check-circle"></i>
         <span id="successMessage">Code copied to clipboard!</span>
+    </div>
+
+    <!-- Test Chat Modal -->
+    <div class="modal-overlay" id="testChatModal">
+        <div class="modal chat-modal">
+            <div class="modal-header">
+                <h3><i class="fas fa-comments"></i> Test Your Chatbot</h3>
+                <button class="modal-close" id="closeChatModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="chat-container">
+                    <div class="chat-messages" id="testChatMessages">
+                        <div class="chat-message bot">
+                            <div class="message-avatar">
+                                <i class="fas fa-robot"></i>
+                            </div>
+                            <div class="message-content">
+                                ¡Hola! Soy tu asistente de IA. ¿En qué puedo ayudarte?
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chat-input-area">
+                        <input type="text" placeholder="Escribe tu mensaje..." id="testChatInput" class="chat-input">
+                        <button id="sendTestMessage" class="send-btn">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Chatbots List Section -->
