@@ -1,9 +1,10 @@
-// API Configuration - Replace with your deployed Cloudflare Worker URL
+// API Configuration - Using local development server
 const API_BASE_URL = 'https://bot-engine.lacamacatu.workers.dev';
 const API_ENDPOINTS = {
   CREATE: '/api/create',
   LIST: '/api/list',
-  DELETE: '/api/delete'
+  DELETE: '/api/delete',
+  CHAT: '/api/chat'
 };
 
 // DOM Elements
@@ -37,6 +38,17 @@ let currentChatbots = [];
 let isCreating = false;
 let currentTestBotId = null;
 let testChatHistory = [];
+let testSessionId = null;
+
+// Generate persistent session ID like the widget
+const generateSessionId = (botId) => {
+  let sessionId = localStorage.getItem('chatbot_session_' + botId);
+  if (!sessionId) {
+    sessionId = 'session_' + Math.random().toString(36).substring(2) + Date.now().toString(36);
+    localStorage.setItem('chatbot_session_' + botId, sessionId);
+  }
+  return sessionId;
+};
 
 // Utility Functions
 const debounce = (func, wait) => {
@@ -169,6 +181,8 @@ const listChatbots = async () => {
 
 const deleteChatbot = async (botId) => {
   try {
+    console.log(`🗑️ Starting deletion process for bot ID: ${botId}`);
+    
     const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.DELETE}/${botId}`, {
       method: 'DELETE',
       headers: {
@@ -176,15 +190,25 @@ const deleteChatbot = async (botId) => {
       }
     });
 
+    console.log(`📡 Delete API response status: ${response.status}`);
+
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
+      console.error(`❌ Delete API error:`, errorData);
       throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
     }
 
     const data = await response.json();
+    console.log(`✅ Delete API response:`, data);
+    
+    if (data.success) {
+      console.log(`🎉 Bot ${botId} successfully deleted from backend`);
+      console.log(`📝 Note: Vectorize cleanup requires background processing`);
+    }
+    
     return data;
   } catch (error) {
-    console.error('Delete chatbot error:', error);
+    console.error('❌ Delete chatbot error:', error);
     throw error;
   }
 };
@@ -211,6 +235,9 @@ const renderChatbotCard = (chatbot, index) => {
   card.className = 'chatbot-card';
   card.style.animationDelay = `${index * 0.1}s`;
   
+  // Generate embed code if not present
+  const embedCode = chatbot.embedCode || `<script src="${API_BASE_URL}/widget.js" data-bot-id="${chatbot.id}"></script>`;
+  
   card.innerHTML = `
     <div class="chatbot-header">
       <div class="chatbot-icon">
@@ -226,6 +253,9 @@ const renderChatbotCard = (chatbot, index) => {
         <i class="fas fa-calendar"></i>
         ${formatDate(chatbot.createdAt)}
       </div>
+      <div class="chatbot-stats">
+        <span><i class="fas fa-file-alt"></i> ${chatbot.totalPages || 0} pages</span>
+      </div>
     </div>
     <div class="chatbot-actions">
       <button class="action-btn test-chat-card-btn" data-bot-id="${chatbot.id}" data-bot-title="${chatbot.title}">
@@ -240,7 +270,7 @@ const renderChatbotCard = (chatbot, index) => {
           </div>
         </span>
       </button>
-      <button class="action-btn copy-embed-btn" data-embed="${encodeURIComponent(chatbot.embedCode || '')}">
+      <button class="action-btn copy-embed-btn" data-embed="${encodeURIComponent(embedCode)}">
         <span class="btn-content">
           <span class="btn-text">
             <i class="fas fa-code"></i>
@@ -335,6 +365,22 @@ const copyToClipboard = async (text) => {
   }
 };
 
+// Enhanced message formatting - exactly like the widget
+const formatMessage = (content) => {
+  // Convert markdown-style formatting
+  content = content.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+  content = content.replace(/\n/g, '<br>');
+  
+  // Convert bullet points
+  content = content.replace(/^- (.*$)/gim, '• $1');
+  content = content.replace(/^\* (.*$)/gim, '• $1');
+  
+  // Convert numbered lists
+  content = content.replace(/^(\d+)\. (.*$)/gim, '$1. $2');
+  
+  return content;
+};
+
 // Enhanced HTML sanitization for safe rendering
 const sanitizeHtml = (html) => {
   const div = document.createElement('div');
@@ -350,26 +396,67 @@ const sanitizeHtml = (html) => {
     .replace(/\n/g, '<br>');
 };
 
-// Test Chat Functions
+// Test Chat Functions - Enhanced like the widget
 const openTestChat = (botId, botTitle) => {
   currentTestBotId = botId;
   testChatHistory = [];
+  testSessionId = generateSessionId(botId);
+  
+  console.log(`🤖 Opening test chat for bot: ${botId} with session: ${testSessionId}`);
+  
   elements.testChatModal.classList.add('show');
   document.body.style.overflow = 'hidden';
   
-  // Reset chat messages
+  // Reset chat messages with initial greeting
   elements.testChatMessages.innerHTML = `
     <div class="chat-message bot">
       <div class="message-avatar">
         <i class="fas fa-robot"></i>
       </div>
       <div class="message-content">
-        ¡Hola! Soy el asistente de IA para ${botTitle}. ¿En qué puedo ayudarte?
+        👋 Hi! I'm here to help you with any questions about ${botTitle}. How can I assist you today?
       </div>
     </div>
   `;
   
   elements.testChatInput.focus();
+  
+  // Send initial greeting to get AI-generated contextual greeting
+  setTimeout(() => {
+    sendInitialGreeting(botTitle);
+  }, 500);
+};
+
+// Send initial greeting to get AI-generated contextual response
+const sendInitialGreeting = async (botTitle) => {
+  try {
+    console.log(`📝 Sending initial greeting for contextual response...`);
+    
+    const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.CHAT}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        id: currentTestBotId,
+        message: 'Hello',
+        sessionId: testSessionId
+      })
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      if (data.response && data.response !== 'Hello') {
+        // Replace the default greeting with AI-generated one
+        const greeting = elements.testChatMessages.querySelector('.chat-message.bot .message-content');
+        if (greeting) {
+          greeting.innerHTML = formatMessage(data.response);
+        }
+      }
+    }
+  } catch (error) {
+    console.log('Initial greeting failed, using default');
+  }
 };
 
 const closeTestChat = () => {
@@ -379,13 +466,13 @@ const closeTestChat = () => {
   testChatHistory = [];
 };
 
-// Enhanced message rendering with HTML support
-const addChatMessage = (content, isUser = false) => {
+// Enhanced message rendering with HTML support - exactly like widget
+const addChatMessage = (content, isUser = false, sources = null) => {
   const messageDiv = document.createElement('div');
   messageDiv.className = `chat-message ${isUser ? 'user' : 'bot'}`;
   
-  // Sanitize and render HTML content for bot messages
-  const processedContent = isUser ? content : sanitizeHtml(content);
+  // Format content exactly like the widget
+  const processedContent = isUser ? content : formatMessage(content);
   
   messageDiv.innerHTML = `
     <div class="message-avatar">
@@ -395,6 +482,12 @@ const addChatMessage = (content, isUser = false) => {
   `;
   
   elements.testChatMessages.appendChild(messageDiv);
+  
+  // Add sources if provided (like the widget)
+  if (sources && sources.length > 0) {
+    addSources(sources);
+  }
+  
   elements.testChatMessages.scrollTop = elements.testChatMessages.scrollHeight;
   
   // Add to history
@@ -402,6 +495,48 @@ const addChatMessage = (content, isUser = false) => {
     role: isUser ? 'user' : 'assistant',
     content: content
   });
+};
+
+// Add sources section like the widget
+const addSources = (links) => {
+  if (!links || links.length === 0) return;
+  
+  const sourcesDiv = document.createElement('div');
+  sourcesDiv.className = 'chat-sources';
+  
+  sourcesDiv.innerHTML = `
+    <div class="sources-title">📚 Sources:</div>
+    ${links.map(url => {
+      const title = getPageTitle(url);
+      return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="source-link">🔗 ${title}</a>`;
+    }).join('')}
+  `;
+  
+  elements.testChatMessages.appendChild(sourcesDiv);
+  elements.testChatMessages.scrollTop = elements.testChatMessages.scrollHeight;
+};
+
+// Enhanced page title extraction like the widget
+const getPageTitle = (url) => {
+  try {
+    const urlObj = new URL(url);
+    const path = urlObj.pathname;
+    const segments = path.split('/').filter(s => s);
+    
+    if (segments.length > 0) {
+      const lastSegment = segments[segments.length - 1];
+      return lastSegment
+        .replace(/-/g, ' ')
+        .replace(/_/g, ' ')
+        .replace(/\b\w/g, l => l.toUpperCase())
+        .replace(/\.(html|php|aspx?)$/i, '')
+        .substring(0, 25) + (lastSegment.length > 25 ? '...' : '');
+    }
+    
+    return urlObj.hostname.replace('www.', '').substring(0, 20);
+  } catch {
+    return 'More info';
+  }
 };
 
 const showTypingIndicator = () => {
@@ -437,6 +572,8 @@ const sendTestChatMessage = async () => {
   const message = elements.testChatInput.value.trim();
   if (!message || !currentTestBotId) return;
 
+  console.log(`💬 Sending message: "${message}" to bot ${currentTestBotId} with session ${testSessionId}`);
+
   // Add user message
   addChatMessage(message, true);
   elements.testChatInput.value = '';
@@ -446,7 +583,7 @@ const sendTestChatMessage = async () => {
   elements.sendTestMessage.disabled = true;
 
   try {
-    const response = await fetch(`${API_BASE_URL}/api/chat`, {
+    const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.CHAT}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -454,24 +591,28 @@ const sendTestChatMessage = async () => {
       body: JSON.stringify({
         id: currentTestBotId,
         message: message,
-        sessionId: 'test_session_' + currentTestBotId,
-        history: testChatHistory.slice(-10) // Send last 10 messages for context
+        sessionId: testSessionId
       })
     });
 
     hideTypingIndicator();
 
+    console.log(`📡 Chat API response status: ${response.status}`);
+
     if (!response.ok) {
-      throw new Error('Failed to get response');
+      throw new Error(`HTTP ${response.status}: Failed to get response`);
     }
 
     const data = await response.json();
-    addChatMessage(data.response || 'Lo siento, no pude procesar tu mensaje.');
+    console.log(`🤖 Bot response:`, data);
+    
+    const botResponse = data.response || 'I apologize, but I encountered an error processing your request.';
+    addChatMessage(botResponse, false, data.links);
     
   } catch (error) {
-    console.error('Test chat error:', error);
+    console.error('❌ Test chat error:', error);
     hideTypingIndicator();
-    addChatMessage('Error: No se pudo conectar con el chatbot. Verifica que el worker esté desplegado correctamente.');
+    addChatMessage('Sorry, I encountered an error. Please try again.', false);
   } finally {
     elements.sendTestMessage.disabled = false;
   }
@@ -528,11 +669,17 @@ elements.urlInput.addEventListener('input', (e) => {
 elements.closeModal.addEventListener('click', hideModal);
 elements.closeChatModal.addEventListener('click', closeTestChat);
 
-// Test chat button
+// Test chat button - Updated to use real bot ID from success modal context
 elements.testChatBtn.addEventListener('click', () => {
   const botTitle = elements.chatbotTitle.textContent;
-  // Extract bot ID from current context or use a default
-  openTestChat('current_bot', botTitle);
+  const embedCode = elements.embedCode.textContent;
+  
+  // Extract bot ID from embed code
+  const botIdMatch = embedCode.match(/data-bot-id="([^"]+)"/);
+  const botId = botIdMatch ? botIdMatch[1] : 'demo_bot';
+  
+  console.log(`🎯 Opening test chat from success modal for bot: ${botId}`);
+  openTestChat(botId, botTitle);
 });
 
 // Chat input handlers
@@ -586,18 +733,34 @@ elements.chatbotsGrid.addEventListener('click', async (e) => {
       setTimeout(() => setButtonLoading(button, false), 500);
     }
   } else if (button.classList.contains('delete-btn')) {
-    if (confirm(`Are you sure you want to delete "${botTitle}"?`)) {
+    if (confirm(`⚠️ Are you sure you want to delete "${botTitle}"?\n\nThis will permanently remove:\n• All chatbot data from KV storage\n• Vector embeddings from Vectorize\n• Chat conversation history\n\nThis action cannot be undone.`)) {
       setButtonLoading(button, true, 'Deleting...');
+      console.log(`🗑️ User confirmed deletion of bot: ${botId}`);
+      
       try {
-        await deleteChatbot(botId);
-        showToast('success', 'Chatbot deleted successfully');
-        loadChatbots();
+        const result = await deleteChatbot(botId);
+        
+        if (result.success) {
+          showToast('success', '🎉 Chatbot deleted successfully!');
+          console.log(`✅ Deletion completed successfully for bot: ${botId}`);
+          
+          // Clear session storage for this bot
+          localStorage.removeItem('chatbot_session_' + botId);
+          console.log(`🧹 Cleared session data for bot: ${botId}`);
+          
+          // Reload chatbots list
+          loadChatbots();
+        } else {
+          throw new Error(result.message || 'Delete operation failed');
+        }
       } catch (error) {
-        console.error('Delete error:', error);
-        showToast('error', 'Failed to delete chatbot');
+        console.error('❌ Delete error:', error);
+        showToast('error', `Failed to delete chatbot: ${error.message}`);
       } finally {
         setButtonLoading(button, false);
       }
+    } else {
+      console.log(`❌ User cancelled deletion of bot: ${botId}`);
     }
   }
 });

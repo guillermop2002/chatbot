@@ -790,6 +790,57 @@ p {
   }
 }
 
+/* Chat Sources Styling */
+.chat-sources {
+  background: rgba(33, 150, 243, 0.1);
+  border: 1px solid rgba(33, 150, 243, 0.2);
+  border-radius: var(--radius-lg);
+  padding: var(--space-md);
+  margin: var(--space-xs) 0 var(--space-md) 0;
+  max-width: 85%;
+  animation: messageSlideIn 0.3s ease-out;
+}
+
+.sources-title {
+  font-weight: 600;
+  color: #2196f3;
+  margin-bottom: var(--space-xs);
+  font-size: var(--font-size-sm);
+}
+
+.source-link {
+  display: block;
+  background: #2196f3;
+  color: white;
+  text-decoration: none;
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  margin: var(--space-xs) 0;
+  transition: background var(--transition-fast);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.source-link:hover {
+  background: #1976d2;
+  text-decoration: none;
+}
+
+/* Enhanced chatbot meta for stats */
+.chatbot-stats {
+  margin-top: var(--space-xs);
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+}
+
+.chatbot-stats span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
 /* Toast Notifications */
 .toast {
   position: fixed;
