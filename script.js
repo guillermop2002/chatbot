@@ -194,6 +194,9 @@ const updateURLValidation = debounce((url) => {
   }
 }, 300);
 
+// EN: script.js
+// REEMPLAZA ESTA FUNCIÓN COMPLETA
+
 const renderChatbotCard = (chatbot, index) => {
   const card = document.createElement('div');
   card.className = 'chatbot-card';
@@ -224,9 +227,19 @@ const renderChatbotCard = (chatbot, index) => {
         <i class="fas fa-code"></i>
         Copy Embed
       </button>
+      
       <button class="action-btn delete-btn" data-bot-id="${chatbot.id}" data-bot-title="${chatbot.title}">
-        <i class="fas fa-trash"></i>
-        Delete
+        <span class="btn-text">
+            <i class="fas fa-trash"></i>
+            Delete
+        </span>
+        <div class="btn-loader">
+            <div class="loading-dots">
+                <div></div>
+                <div></div>
+                <div></div>
+            </div>
+        </div>
       </button>
     </div>
   `;
@@ -565,28 +578,24 @@ elements.chatbotsGrid.addEventListener('click', async (e) => {
     const botId = btn.dataset.botId;
     const botTitle = btn.dataset.botTitle;
     
-    // Confirm deletion
-    const confirmed = confirm(`¿Estás seguro de que quieres eliminar el chatbot "${botTitle}"?\n\nEsta acción no se puede deshacer y eliminará todos los datos asociados.`);
+    const confirmed = confirm(`¿Estás seguro de que quieres eliminar el chatbot "${botTitle}"?\n\nEsta acción no se puede deshacer.`);
     
     if (confirmed) {
-      // Show loading state on button
-      const originalHTML = btn.innerHTML;
-      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting...';
+      // CAMBIO: Lógica de carga simplificada
+      btn.classList.add('loading');
       btn.disabled = true;
       
       try {
         await deleteChatbot(botId);
         showToast('success', `Chatbot "${botTitle}" deleted successfully`);
         
-        // Remove card from UI with animation
         const card = btn.closest('.chatbot-card');
-        card.style.transform = 'translateX(100%)';
+        card.style.transition = 'transform 0.3s ease, opacity 0.3s ease';
+        card.style.transform = 'scale(0.9)';
         card.style.opacity = '0';
         
         setTimeout(() => {
           card.remove();
-          
-          // Show empty state if no cards left
           const remainingCards = elements.chatbotsGrid.querySelectorAll('.chatbot-card');
           if (remainingCards.length === 0) {
             elements.emptyState.style.display = 'flex';
@@ -594,13 +603,10 @@ elements.chatbotsGrid.addEventListener('click', async (e) => {
         }, 300);
         
       } catch (error) {
-        // Restore button state on error
-        btn.innerHTML = originalHTML;
+        // Restaurar el botón en caso de error
+        btn.classList.remove('loading');
         btn.disabled = false;
-        
-        const errorMsg = error.message.includes('fetch') 
-          ? 'Network error. Please check your connection and try again.'
-          : error.message;
+        const errorMsg = error.message.includes('fetch') ? 'Network error.' : error.message;
         showToast('error', `Failed to delete chatbot: ${errorMsg}`);
       }
     }
