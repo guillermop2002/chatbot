@@ -380,6 +380,16 @@ p {
   transition: var(--transition-fast);
 }
 
+.btn-loader::before {
+  content: '';
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white; /* Usar border-top-color para la parte que gira */
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
 .create-btn.loading .btn-text {
   opacity: 0;
 }
