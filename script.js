@@ -36,6 +36,7 @@ const elements = {
 let currentChatbots = [];
 let isCreating = false;
 let currentTestBotId = null;
+let testChatHistory = [];
 
 // Utility Functions
 const debounce = (func, wait) => {
@@ -93,15 +94,26 @@ const hideModal = () => {
   document.body.style.overflow = 'auto';
 };
 
-const setButtonLoading = (loading) => {
-  isCreating = loading;
+// Improved button loading state management
+const setButtonLoading = (button, loading, loadingText = 'Processing...') => {
   if (loading) {
-    elements.createBtn.classList.add('loading');
-    elements.createBtn.disabled = true;
+    button.classList.add('loading');
+    button.disabled = true;
+    // Update loading text if provided
+    const loaderSpan = button.querySelector('.btn-loader span');
+    if (loaderSpan) {
+      loaderSpan.textContent = loadingText;
+    }
   } else {
-    elements.createBtn.classList.remove('loading');
-    elements.createBtn.disabled = false;
+    button.classList.remove('loading');
+    button.disabled = false;
   }
+};
+
+// Enhanced create button loading state
+const setCreateButtonLoading = (loading) => {
+  isCreating = loading;
+  setButtonLoading(elements.createBtn, loading, 'Processing...');
 };
 
 // API Functions
@@ -217,16 +229,40 @@ const renderChatbotCard = (chatbot, index) => {
     </div>
     <div class="chatbot-actions">
       <button class="action-btn test-chat-card-btn" data-bot-id="${chatbot.id}" data-bot-title="${chatbot.title}">
-        <i class="fas fa-comments"></i>
-        Test Chat
+        <span class="btn-content">
+          <span class="btn-text">
+            <i class="fas fa-comments"></i>
+            Test Chat
+          </span>
+          <div class="btn-loader">
+            <div class="spinner"></div>
+            <span>Loading...</span>
+          </div>
+        </span>
       </button>
       <button class="action-btn copy-embed-btn" data-embed="${encodeURIComponent(chatbot.embedCode || '')}">
-        <i class="fas fa-code"></i>
-        Copy Embed
+        <span class="btn-content">
+          <span class="btn-text">
+            <i class="fas fa-code"></i>
+            Copy Embed
+          </span>
+          <div class="btn-loader">
+            <div class="spinner"></div>
+            <span>Copying...</span>
+          </div>
+        </span>
       </button>
       <button class="action-btn delete-btn" data-bot-id="${chatbot.id}" data-bot-title="${chatbot.title}">
-        <i class="fas fa-trash"></i>
-        Delete
+        <span class="btn-content">
+          <span class="btn-text">
+            <i class="fas fa-trash"></i>
+            Delete
+          </span>
+          <div class="btn-loader">
+            <div class="spinner"></div>
+            <span>Deleting...</span>
+          </div>
+        </span>
       </button>
     </div>
   `;
@@ -299,9 +335,25 @@ const copyToClipboard = async (text) => {
   }
 };
 
+// Enhanced HTML sanitization for safe rendering
+const sanitizeHtml = (html) => {
+  const div = document.createElement('div');
+  div.textContent = html;
+  const text = div.innerHTML;
+  
+  // Allow basic formatting tags
+  return text
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+    .replace(/`(.*?)`/g, '<code>$1</code>')
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
+    .replace(/\n/g, '<br>');
+};
+
 // Test Chat Functions
 const openTestChat = (botId, botTitle) => {
   currentTestBotId = botId;
+  testChatHistory = [];
   elements.testChatModal.classList.add('show');
   document.body.style.overflow = 'hidden';
   
@@ -324,21 +376,32 @@ const closeTestChat = () => {
   elements.testChatModal.classList.remove('show');
   document.body.style.overflow = 'auto';
   currentTestBotId = null;
+  testChatHistory = [];
 };
 
+// Enhanced message rendering with HTML support
 const addChatMessage = (content, isUser = false) => {
   const messageDiv = document.createElement('div');
   messageDiv.className = `chat-message ${isUser ? 'user' : 'bot'}`;
+  
+  // Sanitize and render HTML content for bot messages
+  const processedContent = isUser ? content : sanitizeHtml(content);
   
   messageDiv.innerHTML = `
     <div class="message-avatar">
       <i class="fas fa-${isUser ? 'user' : 'robot'}"></i>
     </div>
-    <div class="message-content">${content}</div>
+    <div class="message-content">${processedContent}</div>
   `;
   
   elements.testChatMessages.appendChild(messageDiv);
   elements.testChatMessages.scrollTop = elements.testChatMessages.scrollHeight;
+  
+  // Add to history
+  testChatHistory.push({
+    role: isUser ? 'user' : 'assistant',
+    content: content
+  });
 };
 
 const showTypingIndicator = () => {
@@ -391,7 +454,8 @@ const sendTestChatMessage = async () => {
       body: JSON.stringify({
         id: currentTestBotId,
         message: message,
-        sessionId: 'test_session_' + currentTestBotId
+        sessionId: 'test_session_' + currentTestBotId,
+        history: testChatHistory.slice(-10) // Send last 10 messages for context
       })
     });
 
@@ -413,16 +477,6 @@ const sendTestChatMessage = async () => {
   }
 };
 
-const setDeleteButtonLoading = (button, loading) => {
-  if (loading) {
-    button.classList.add('loading');
-    button.disabled = true;
-  } else {
-    button.classList.remove('loading');
-    button.disabled = false;
-  }
-};
-
 // Event Listeners
 elements.form.addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -431,76 +485,129 @@ elements.form.addEventListener('submit', async (e) => {
   
   const url = elements.urlInput.value.trim();
   
-  if (!url) {
-    showToast('error', 'Please enter a website URL');
-    return;
-  }
-  
   if (!validateURL(url)) {
     showToast('error', 'Please enter a valid URL');
     return;
   }
   
-  setButtonLoading(true);
+  setCreateButtonLoading(true);
   
   try {
     const result = await createChatbot(url);
     
-    // Store bot ID for test chat
-    currentTestBotId = result.botId;
-    showModal(result.title || 'Your AI Chatbot', result.embedCode);
-    
-    // Reset form
-    elements.form.reset();
-    elements.urlValidation.textContent = '';
-    elements.urlValidation.className = 'url-validation';
-    
-    // Refresh chatbots list
-    loadChatbots();
-    
+    if (result.success) {
+      showModal(result.title || 'AI Chatbot', result.embedCode);
+      showToast('success', 'Chatbot created successfully!');
+      
+      // Reset form
+      elements.urlInput.value = '';
+      elements.urlValidation.textContent = '';
+      elements.urlValidation.className = 'url-validation';
+      
+      // Reload chatbots list
+      setTimeout(() => {
+        loadChatbots();
+      }, 1000);
+    } else {
+      throw new Error(result.error || 'Failed to create chatbot');
+    }
   } catch (error) {
-    const errorMsg = error.message.includes('fetch') 
-      ? 'Network error. Please check your connection and try again.'
-      : error.message;
-    showToast('error', errorMsg);
+    console.error('Creation error:', error);
+    showToast('error', error.message || 'Failed to create chatbot. Please try again.');
   } finally {
-    setButtonLoading(false);
+    setCreateButtonLoading(false);
   }
 });
 
+// URL input validation
 elements.urlInput.addEventListener('input', (e) => {
   updateURLValidation(e.target.value);
 });
 
+// Modal close handlers
 elements.closeModal.addEventListener('click', hideModal);
+elements.closeChatModal.addEventListener('click', closeTestChat);
 
-elements.successModal.addEventListener('click', (e) => {
-  if (e.target === elements.successModal) {
-    hideModal();
+// Test chat button
+elements.testChatBtn.addEventListener('click', () => {
+  const botTitle = elements.chatbotTitle.textContent;
+  // Extract bot ID from current context or use a default
+  openTestChat('current_bot', botTitle);
+});
+
+// Chat input handlers
+elements.testChatInput.addEventListener('keypress', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendTestChatMessage();
   }
 });
 
+elements.sendTestMessage.addEventListener('click', sendTestChatMessage);
+
+// Copy embed code
 elements.copyEmbedBtn.addEventListener('click', async () => {
   const embedCode = elements.embedCode.textContent;
-  const success = await copyToClipboard(embedCode);
-  
-  if (success) {
+  if (await copyToClipboard(embedCode)) {
     showToast('success', 'Embed code copied to clipboard!');
-    hideModal();
   } else {
     showToast('error', 'Failed to copy embed code');
   }
 });
 
-// Test Chat Modal Event Listeners
-elements.testChatBtn.addEventListener('click', () => {
-  if (currentTestBotId) {
-    const botTitle = elements.chatbotTitle.textContent || 'Your AI Chatbot';
-    openTestChat(currentTestBotId, botTitle);
+// Toast close handlers
+document.querySelectorAll('.toast-close').forEach(button => {
+  button.addEventListener('click', (e) => {
+    e.target.closest('.toast').classList.remove('show');
+  });
+});
+
+// Chatbot card event delegation
+elements.chatbotsGrid.addEventListener('click', async (e) => {
+  const button = e.target.closest('button');
+  if (!button) return;
+
+  const botId = button.dataset.botId;
+  const botTitle = button.dataset.botTitle;
+  const embedCode = button.dataset.embed;
+
+  if (button.classList.contains('test-chat-card-btn')) {
+    openTestChat(botId, botTitle);
+  } else if (button.classList.contains('copy-embed-btn')) {
+    setButtonLoading(button, true, 'Copying...');
+    try {
+      const decodedEmbedCode = decodeURIComponent(embedCode);
+      if (await copyToClipboard(decodedEmbedCode)) {
+        showToast('success', 'Embed code copied to clipboard!');
+      } else {
+        showToast('error', 'Failed to copy embed code');
+      }
+    } finally {
+      setTimeout(() => setButtonLoading(button, false), 500);
+    }
+  } else if (button.classList.contains('delete-btn')) {
+    if (confirm(`Are you sure you want to delete "${botTitle}"?`)) {
+      setButtonLoading(button, true, 'Deleting...');
+      try {
+        await deleteChatbot(botId);
+        showToast('success', 'Chatbot deleted successfully');
+        loadChatbots();
+      } catch (error) {
+        console.error('Delete error:', error);
+        showToast('error', 'Failed to delete chatbot');
+      } finally {
+        setButtonLoading(button, false);
+      }
+    }
   }
 });
 
-elements.closeChatModal.addEventListener('click', closeTestChat);
+// Modal overlay click to close
+elements.successModal.addEventListener('click', (e) => {
+  if (e.target === elements.successModal) {
+    hideModal();
+  }
+});
 
 elements.testChatModal.addEventListener('click', (e) => {
   if (e.target === elements.testChatModal) {
@@ -508,181 +615,19 @@ elements.testChatModal.addEventListener('click', (e) => {
   }
 });
 
-elements.sendTestMessage.addEventListener('click', sendTestChatMessage);
-
-elements.testChatInput.addEventListener('keypress', (e) => {
-  if (e.key === 'Enter') {
-    sendTestChatMessage();
-  }
-});
-
-// Handle chatbot card buttons (test chat, copy and delete)
-elements.chatbotsGrid.addEventListener('click', async (e) => {
-  // Handle test chat button
-  if (e.target.closest('.test-chat-card-btn')) {
-    e.preventDefault();
-    const btn = e.target.closest('.test-chat-card-btn');
-    const botId = btn.dataset.botId;
-    const botTitle = btn.dataset.botTitle;
-    
-    openTestChat(botId, botTitle);
-    return;
-  }
-  
-  // Handle copy embed button
-  if (e.target.closest('.copy-embed-btn')) {
-    e.preventDefault();
-    const btn = e.target.closest('.copy-embed-btn');
-    const embedCode = decodeURIComponent(btn.dataset.embed);
-    
-    if (embedCode && embedCode !== 'undefined') {
-      const success = await copyToClipboard(embedCode);
-      
-      if (success) {
-        showToast('success', 'Embed code copied to clipboard!');
-        
-        // Visual feedback on button
-        const originalHTML = btn.innerHTML;
-        btn.innerHTML = '<i class="fas fa-check"></i> Copied!';
-        btn.style.background = 'var(--success)';
-        
-        setTimeout(() => {
-          btn.innerHTML = originalHTML;
-          btn.style.background = '';
-        }, 2000);
-      } else {
-        showToast('error', 'Failed to copy embed code');
-      }
-    } else {
-      showToast('error', 'No embed code available');
-    }
-  }
-  
-  // Handle delete button
-  if (e.target.closest('.delete-btn')) {
-    e.preventDefault();
-    const btn = e.target.closest('.delete-btn');
-    const botId = btn.dataset.botId;
-    const botTitle = btn.dataset.botTitle;
-    
-    // Confirm deletion
-    const confirmed = confirm(`¿Estás seguro de que quieres eliminar el chatbot "${botTitle}"?\n\nEsta acción no se puede deshacer y eliminará todos los datos asociados.`);
-    
-    if (confirmed) {
-      // Show loading state on button
-      const originalHTML = btn.innerHTML;
-      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting...';
-      btn.disabled = true;
-      
-      try {
-        await deleteChatbot(botId);
-        showToast('success', `Chatbot "${botTitle}" deleted successfully`);
-        
-        // Remove card from UI with animation
-        const card = btn.closest('.chatbot-card');
-        card.style.transform = 'translateX(100%)';
-        card.style.opacity = '0';
-        
-        setTimeout(() => {
-          card.remove();
-          
-          // Show empty state if no cards left
-          const remainingCards = elements.chatbotsGrid.querySelectorAll('.chatbot-card');
-          if (remainingCards.length === 0) {
-            elements.emptyState.style.display = 'flex';
-          }
-        }, 300);
-        
-      } catch (error) {
-        // Restore button state on error
-        btn.innerHTML = originalHTML;
-        btn.disabled = false;
-        
-        const errorMsg = error.message.includes('fetch') 
-          ? 'Network error. Please check your connection and try again.'
-          : error.message;
-        showToast('error', `Failed to delete chatbot: ${errorMsg}`);
-      }
-    }
-  }
-});
-
-// Handle toast close buttons
-document.querySelectorAll('.toast-close').forEach(btn => {
-  btn.addEventListener('click', (e) => {
-    e.target.closest('.toast').classList.remove('show');
-  });
-});
-
-// Keyboard shortcuts
-document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') {
-    hideModal();
-    document.querySelectorAll('.toast').forEach(toast => {
-      toast.classList.remove('show');
-    });
-  }
-});
-
-// Smooth scrolling for navigation links
-document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-  anchor.addEventListener('click', function (e) {
-    e.preventDefault();
-    const target = document.querySelector(this.getAttribute('href'));
-    if (target) {
-      target.scrollIntoView({
-        behavior: 'smooth',
-        block: 'start'
-      });
-    }
-  });
-});
-
 // Initialize app
 document.addEventListener('DOMContentLoaded', () => {
-  // Load existing chatbots
   loadChatbots();
-  
-  // Focus URL input
-  elements.urlInput.focus();
-  
-  // Add some initial animation delays
-  const animatedElements = document.querySelectorAll('.hero-text, .chatbot-creator');
-  animatedElements.forEach((el, index) => {
-    el.style.animationDelay = `${index * 0.2}s`;
-  });
 });
 
-// Handle connection errors and retry logic
-window.addEventListener('online', () => {
-  showToast('success', 'Connection restored');
-  if (currentChatbots.length === 0) {
-    loadChatbots();
+// Handle escape key to close modals
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    if (elements.successModal.classList.contains('show')) {
+      hideModal();
+    }
+    if (elements.testChatModal.classList.contains('show')) {
+      closeTestChat();
+    }
   }
-});
-
-window.addEventListener('offline', () => {
-  showToast('error', 'Connection lost. Please check your internet connection.');
-});
-
-// Performance optimization: Intersection Observer for animations
-const observeIntersection = () => {
-  const observer = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-      if (entry.isIntersecting) {
-        entry.target.style.animationPlayState = 'running';
-        observer.unobserve(entry.target);
-      }
-    });
-  }, { threshold: 0.1 });
-  
-  document.querySelectorAll('.feature-card, .chatbot-card').forEach(el => {
-    el.style.animationPlayState = 'paused';
-    observer.observe(el);
-  });
-};
-
-// Initialize intersection observer after DOM is loaded
-document.addEventListener('DOMContentLoaded', () => {
-  setTimeout(observeIntersection, 100);
 });
