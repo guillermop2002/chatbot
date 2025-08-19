@@ -386,11 +386,20 @@ p {
 
 .create-btn.loading .btn-loader {
   opacity: 1;
-
 }
-.loading-spinner .fa-spinner {
-  font-size: 2rem; /* ajusta el tamaño del icono */
-  color: var(--text-muted);
+
+/* Spinner */
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top: 2px solid white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 /* Modal */
@@ -1153,38 +1162,6 @@ p {
 
 .typing-dot:nth-child(3) {
   animation-delay: 0.4s;
-}
-
-.action-btn {
-  position: relative;
-  overflow: hidden;
-}
-
-.action-btn .btn-loader {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  display: flex;
-  align-items: center;
-  gap: var(--space-xs);
-  opacity: 0;
-  transition: var(--transition-fast);
-  pointer-events: none; /* Evita que el loader interfiera con clics */
-}
-
-.action-btn.loading .btn-text {
-  opacity: 0;
-}
-
-.action-btn.loading .btn-loader {
-  opacity: 1;
-}
-
-/* Ajustamos los puntos para que sean más pequeños en los botones de acción */
-.action-btn .loading-dots div {
-    width: 6px;
-    height: 6px;
 }
 
 /* Animations */
