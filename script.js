@@ -214,12 +214,6 @@ const renderChatbotCard = (chatbot, index) => {
         <i class="fas fa-calendar"></i>
         ${formatDate(chatbot.createdAt)}
       </div>
-      <div class="chatbot-stats">
-        <span class="stat-item">
-          <i class="fas fa-file-alt"></i>
-          ${chatbot.pageCount || 0} pages
-        </span>
-      </div>
     </div>
     <div class="chatbot-actions">
       <button class="action-btn test-chat-card-btn" data-bot-id="${chatbot.id}" data-bot-title="${chatbot.title}">
