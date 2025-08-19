@@ -386,20 +386,11 @@ p {
 
 .create-btn.loading .btn-loader {
   opacity: 1;
-}
 
-/* Spinner */
-.spinner {
-  width: 20px;
-  height: 20px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  border-top: 2px solid white;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
 }
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
+.loading-spinner .fa-spinner {
+  font-size: 2rem; /* ajusta el tamaño del icono */
+  color: var(--text-muted);
 }
 
 /* Modal */
