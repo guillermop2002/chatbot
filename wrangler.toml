@@ -1,0 +1,22 @@
+name = "bot-engine"
+main = "worker/src/index.js"
+compatibility_date = "2025-08-16"
+
+[[kv_namespaces]]
+binding = "BOTS_KV"
+id = "e8e11114553c4d0fa4b8b58fe8c361b6"
+
+[[kv_namespaces]]
+binding = "CHUNKS_KV"
+id = "828f88d6a6ed4cadbf0d9f68d2da3bf7"
+
+[[kv_namespaces]]
+binding = "CONVS_KV"
+id = "642dd414259248f3b35ecc3072f91eb2"
+
+[[vectorize]]
+binding = "VECTORIZE_INDEX"
+index_name = "chatbot-index-v2"
+
+[ai]
+binding = "AI"
