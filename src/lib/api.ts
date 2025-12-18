@@ -1,6 +1,8 @@
 // API client for interacting with the Cloudflare Worker backend
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8787';
+// In production, fallback to the deployed worker URL if env var is missing
+const PROD_WORKER_URL = 'https://bot-engine.guillermop2002.workers.dev';
+const API_BASE_URL = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? PROD_WORKER_URL : 'http://localhost:8787');
 
 export interface Chatbot {
     id: string;
